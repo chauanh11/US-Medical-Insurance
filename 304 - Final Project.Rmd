@@ -1,0 +1,192 @@
+---
+title: "An Analysis of the Affordability of Medical Insurance in the US"
+author: "Annie Chau - 1002556487"
+date: "21/12/2020"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r, echo=FALSE, message=FALSE}
+library(tidyverse)
+library(expss)
+library(ggplot2)
+library(knitr)
+library(kableExtra)
+
+# Loading Medical Insurance data
+medical_data <- read.csv('/Users/anhhc/Desktop/Final/output/medical_data.csv')
+
+#Creating shortcut for variables
+age <- medical_data$age
+sex <- medical_data$sex
+bmi <- medical_data$bmi
+children <- medical_data$children
+smoker <- medical_data$smoker
+region <- medical_data$region
+charges <- medical_data$charges
+
+# Loading IPUMS Data
+IPUMS_data <- read.csv("/Users/anhhc/Desktop/Final/output/IPUMS_data.csv")
+```
+Github Link: https://github.com/chauanh11/US-Medical-Insurance
+
+# Abstract
+Health disparity is becoming a major concern in the United States as American citizens lack access to the same level of medical care. The cost of medical assistance, with or without insurance, has drastically increased over the years making it increasingly difficult for the average American to afford the same level of medical assistance as high-income individuals. Bias plays a role in creating and exacerbating health disparities; those who need access to the highest quality of healthcare (i.e. people with existing health conditions and the elderly) are charged the most for it. This analysis highlights the variables/biases that determine the cost of health insurance as well as predict the cost of medical insurance using a linear regression model developed from real medical insurance dataset. From these predictions, conclusions will be drawn regarding the affordability of medical insurance in the US.
+
+Keywords: Medical Insurance, Linear Regression, Age, Sex, Bmi, Smoker, US insurance, ObamaCare, COVID-19
+
+# Introduction
+With the ongoing threat of COVID-19, it is more important than ever to have access to healthcare, particularly, it is important to be insured since basic medical care may be insufficient during COVID-19 complications. According to CNN, the United States has the highest number of COVID-19 cases in the world (Petterson, 2020). Healthcare is not universal in the United States, thus, insurance coverage is even more crucial for an average US citizen. The most vulnerable members of society during the pandemic includes frontline workers, essential workers, patients with pre-existing conditions, and the elderly. Frontline workers such as doctors and nurses are generally paid well, insurance is usually covered by a union. On the contrary, essential workers remain vulnerable since essential work does not come with insurance (Ross, 2002). People with pre-existing conditions and the elderly patients are those in the direst needs to the best insurance plan, however, their insurance premiums are known to be the most expensive (Hurd, 1997).
+
+As many as 25% of the American population delay seeking medical professionals due to financial constraints, with the rising cost of healthcare, many Americans are struggling to pay for medical assistance (Sainato, 2020). The average emergency room (ER) visit in the US does not include most treatments nor basic comprehensive tests like X-rays and blood tests, yet the average cost is $1,389 (Alltucker, 2019). During a COVID complication, patients may have to stay at the hospital and the average cost per night stayed is \$10,700 (Michaels, 2018). Without insurance, medical costs may be much higher than the averages above. Can most Americans afford to pay for medical care if they contract COVID-19 and experienced health complications? 
+
+The goal of the analysis is to identify the factors that play a pivotal role in determining individuals' medical insurance premiums. The aim is to understand how age, gender, smoker status, etc. affects how much an individual pays for their medical insurance. To do this, two datasets will be analyzed: the Medical Cost Personal Dataset from Kaggle (Choi, 2017) and a demographic dataset from IPUMS (Ruggles, 2020). A linear regression model will be developed based on the Medical Cost Personal Dataset (Choi, 2017) to predict how much an individual could pay for insurance. The demographic dataset from IPUMS (Ruggles, 2020) will provide some insights on whether Americans can afford medical care based on their age, race, sex, income, and insurance status (whether or not they are covered by insurance and what type of insurance if any). The results section will combine analyses from the two datasets to draw a picture regarding the proportions of Americans that are unable to afford healthcare in the case of a health emergency. In the Discussions, conclusions regarding the benefits of a publicly funded healthcare system will be drawn from the results.
+
+# Methodology
+
+### Data:
+```{r, echo=FALSE, results='asis'}
+#Creating table summarizing variables from Medical data
+variables = c("Age", "BMI", "Number of Children", "Charges", "Male", "Female", "Smoker", "Non-smoker", "Resides in Northeast", "Resides in Northwest", "Resides in Southeast", "Resides in Southwest")
+Min. = c(18, 15.96, 0, 1122, 0, 0, 0, 0, 0, 0, 0, 0)
+Max. = c(64, 53.13, 5, 63770, 0, 0, 0, 0, 0, 0, 0, 0)
+Median = c(39, 30.40, 1, 9382, 0, 0, 0, 0, 0, 0, 0, 0)
+Mean = c(39.21, 30.66, 1.095, 13270, 0, 0, 0, 0, 0, 0, 0, 0)
+Total_Observations = c(0, 0, 0, 0, 676, 662, 274, 1064, 324, 325, 364, 325)
+tab1 = tibble(variables, Min., Max., Median, Mean, Total_Observations)
+tab1 %>%
+  kbl(caption="Characteristics of Medical Insurance Dataset") %>%
+  kable_minimal()
+```
+The Medical Insurance dataset retrieved from Kaggle (Choi, 2017) includes a total of 7 variables and 1338 observations. Each observation indicates the age, sex, BMI, number of children, smoker status, the region of residence and total insurance charge of a policy member (someone who pays for insurance). According to Table 1 below, the age of policy members ranges from 18 to 64, indicating that this data may not be appropriate to access the insurance charge of those who are retired (age 65 and above). Sex is divided into male and female with a roughly equal number of observations in both. Body mass index (BMI) indicates whether or not a policy member is within the healthy weight range of 18.5 to 24.9 (CDC, 2020); this value ranges from 15.96 to 53.13 in the dataset. The number of children of each policy member ranges from 0 to 5 with the majority having less than 3 children. Smoker status is indicated as 'yes' or 'no', the majority of policy members observed are non-smokers. Region of residence is divided into 4 distinct regions - northeast, northwest, southeast, and southwest - with a roughly equal number of observations in each. Lastly, the charge for insurance ranges from \$1,122 to $63,770 for the observed policy members.
+
+```{r, echo=FALSE, results='asis'}
+#summary(IPUMS_data)
+Variables = c("Female", "Male", "Has insurance coverage", "Has no insurance coverage", "Has private insurance", "Does not have private insurance", "Has public insurance", "Does not have public insurance", "Has employment/union insurance", "Does not have employment/union insurance", "Directly purchase insurance", "Does not directly purchase insurance")
+Number_of_Observations = c("1,203,072", "1,187,131", "2,221,250", "168,953", "1,734,737", "655,466", "929,402", "1,460,801", "1,371,736", "1,018,467", "408,000", "1,982,203")
+Percent_of_Total = c("50.33%", "49.66%", "92.93%", "7.07%", "72.58%", "27.42%", "38.88%", "61.11%", "57.39%", "42.61%", "17.07%", "82.93%")
+t = tibble(Variables, Number_of_Observations, Percent_of_Total)
+t %>%
+  kbl(caption="Characteristics of IPUMS Dataset") %>%
+  kable_minimal()
+```
+The IPUMS dataset (Ruggles, 2020) has 8 variables: sex, age, whether the individual is a part of any insurance plan, whether the individual has a private insurance plan, whether the individual has public health insurance, whether the individual has employment/union insurance, whether the individual is on a personal insurance plan (purchase insurance for self directly), and lastly, total personal income of the individual. After cleaning the data, an additional variable, income group, was added to group individuals with similar personal income together.
+
+### Model
+The following model will be used to predict the cost of medical insurance given an individual's age, bmi, number of children, smoker status, and region of residence.
+
+$$ y = \beta_0+ \beta_1  x_{age} + \beta_2  x_{bmi}+ \beta_3  x_{children}+ \beta_4  x_{smokeryes} + \beta_5  x_{northwest} + \beta_6  x_{southeast}+ \beta_7  x_{southwest}+ \epsilon$$
+In this model, $\beta_i$ represents the slope the linear function of $x_i$ vs. $y$, the increase/decrease in the cost of medical insurance per unit changed in $x_i$.
+
+* $y$ represents the cost of medical insurance given the $x_i$ variables (i.e. cost of insurance for someone whose age = 24, bmi=22.4, children=0, smoker='no', and region='northeast').
+* $\beta_0$ is the y-intercept term, it represents the cost of insurance when all the other variables are nulled (i.e. for each $\beta_i, x_i = 0$).
+* $\beta_1$ represents the value that y increases or decreases by when an individual's age increases by one unit (i.e. from 23 years old to 24 years old).
+* $\beta_2$ represents the increase or decrease in y (the cost of insurance) when the individual's bmi increase by one unit.
+* $\beta_3$ represents the value that y changes by when the number of children a policy member has changes.
+* $\beta_4$ represents the change in y when the the policy member is a smoker.
+* $\beta_5$ represents the change in y when the region of residence of the policy member is 'northwest'.
+* $\beta_6$ represents the change in y when the region of residence of the policy member is 'southeast'.
+* $\beta_7$ represents the change in y when the region of residence of the policy member is 'southwest'.
+* $\epsilon$ is the error term, it represents possible errors unaccounted for by the $\beta_i$ values.
+
+In this linear regression model, the variables of interest are age, bmi, number of children, smoker status, and region of residence of members. Age, bmi, and number of children are numerical while smoker status and region of residence are categorical. Initially, the sex variable was included in the model, however, it was later removed due to its statistical insignificance in the fitness of the model. Although region = 'northwest' was not a significant variable in the fit summary, removing region decreased the $R^2_{adj}$, thus, it was kept. The remaining variables were used for the model because they were all significant to at least 0.05, removing them decreased $R^2_{adj}$ which means a more inaccurate prediction. The model's $R^2_{adj}$ value is 0.7496 implying that it accurately predicts 74.96% of the medical charges. (Refer to Appendix for model details)
+Verifications regarding the linearity, homoscedasticity, independence and normality were done to ensure that the model does not violate the linear regression model assumptions. Not all assumptions were met, the sum of errors was not zero and the residuals were not perfectly normal. Regardless, variables were linear and variance was approximately constant, therefore, homogeneity assumption was satisfied. A high value of F statistic along with a very low p-value (<2.2e-16) in this model implies that the null hypothesis can be rejected, there is a potential relationship between the predictors and the outcome. 
+
+# Results
+```{r, echo=FALSE}
+medical_data %>%
+  ggplot(aes(x = smoker, y = charges)) + 
+  theme_classic() +
+  geom_boxplot() +
+  labs(title = "Figure 1. Smoker Status vs. Medical Insurance Cost",
+       x = "Smoker",
+       y = "Cost of Insurance") 
+```
+Figure 1. depicts how smokers are likely to be charged more for insurance than non-smokers.
+
+```{r, echo=FALSE}
+medical_data %>%
+  ggplot(aes(x = sex,y = charges)) + 
+  theme_classic() +
+  geom_boxplot() +
+  labs(title = "Figure 2. Gender vs. Medical Insurance Cost",
+       x = "Gender",
+       y = "Cost of Insurance")
+```
+Figure 2. indicates that males and females have similar insurance charges.
+
+```{r, echo=FALSE}
+plot(age, charges, main = "Figure 3. Age vs. Charge", xlab = "Age", ylab = "Insurance Charge ($)")
+```
+Figure 3. depicts a linear increasing trend between age and insurance charges, as an individual age, their insurance becomes more expensive. There are three different linear lines possibly representing different levels of insurance coverage; the top line might indicate the premium insurance plan which costs more.
+
+```{r, echo=FALSE}
+qplot(incgrp, 
+      data = IPUMS_data, 
+      fill = sex, 
+      xlab ="Income Group", 
+      ylab = "Number of Individuals",
+      main = "Figure 4. Personal Income vs. Gender") + coord_flip()
+```
+Figure 4. indicates that the majority of the population make less than \$25,000 a year. Additionally, men are likely to make more money than women as evident in the "$100,000 to \$249,999" and "More than \$249,999" income group.
+
+```{r, echo=FALSE}
+qplot(hcovany, 
+      data = IPUMS_data, 
+      fill = sex, 
+      xlab = "Insurance Status", 
+      ylab = "Number of Individuals",
+      main = "Figure 5. Existence of Insurance and Sex of the Population")
+```
+Figure 5. indicates that the majority of the population has health insurance. Males and females are also equally likely to have insurance.
+
+```{r,echo=FALSE}
+Income_group = IPUMS_data$incgrp
+qplot(hinsemp, 
+      data = IPUMS_data, 
+      fill = Income_group, 
+      xlab = "Insurance Coverage", 
+      ylab = "Number of Individuals",
+      main = "Figure 6. Employment/Union Insurance and Income")
+```
+Figure 6. indicates that individuals that make less than $25,000 a year is unlikely to be covered for insurance by their employer, insurance coverage by employer is more likely for individuals with higher incomes.
+
+# Discussion
+Medical Insurance data from Kaggle (Choi, 2017) was used to develop a linear regression model to predict the cost of insurance for American citizens. Diagnostics on many models were done and the final model included the following variables: age, sex, BMI, smoker status, and region of residence. With additional data regarding American's insurance coverage from IPUMS (Ruggles, 2020), analyses were done on the distribution of insurance coverage between different health statuses, sex and income groups.
+
+As predicted in the Introduction, smokers and the elderly pay a premium price for medical insurance. Figure 1 demonstrates that smokers pay a premium price for medical insurance, this may be a result of their likelihood of acquire more health complications. Figure 3 depicts a positive linear trend between age and insurance cost, as an individual age, their insurance will cost more as a result of poorer health. The average cost of medical insurance in the United States was found to be $13,270.42, this is not a small sum considering that the majority of the population makes less than \$25,000 annually. This finding implies that Americans averagely spends about half of their personal income to be medically insured. The average insurance plan does not cover 100% of all medical expenses, further implying that healthcare can cost more than 50% of an individual's personal income. 50% of personal income on healthcare is NOT affordable. 
+
+Although the cost of insurance is roughly the same for men and women (Figure. 2), women are more likely to be in the lower income bracket (Figure. 4) which implies that there may be a health disparity between the sexes; lower income put women at a disadvantage in affording the same quality of healthcare as men. Figure 6 in the Results section also evident the different access to employer/union insurance between the different income groups; individuals in the lower income brackets are less likely to have insurance coverage by their employer or union. In addition to making less money, insurance is an additional expense for lower income individuals furthering the health disparity between the poor and the rich. 
+
+### Weaknesses & Next Steps
+The Medical Insurance data from Kaggle has many shortcomings that contribute to inaccurate analyses. The location of policy members (members of an insurance plan) is broadly split into only 4 regions, since healthcare benefits and costs differ by states, splitting the region of residence into only four regions may have caused the regression model to underestimate or overestimated the cost of insurance for many individuals. The model may also be flawed because it does not account for pre-existing illnesses or carrier status that may increase the cost of insurance; the Medical Insurance data did not include a variable for pre-existing health conditions. The maximum age depicted by the dataset is 64, thus, the cost of insurance for elderly policy members who are retired is not well-represented in the regression model; predictions for insurance costs for elderly patients may be inaccurate.
+
+Even with insurance, average payout disparities exist between individuals of different races, studies show that claims made by Caucasians receive higher repayment than those of other ethnic groups (Probasco, 2020). Kaggle's Medical Insurance dataset does not include race as a variable, thus, racial biases cannot be analyzed. Furthermore, this analysis does not account for the added cost of premium medical treatments that are not covered by insurance, no conclusion can be drawn on whether the total cost of healthcare (insurance + co-pay expenses) is affordable. Kaggle's dataset represents real data from 2013, almost a decade ago, it does not account for price increases due to COVID-19 and/or other factors such as inflation. Analyses based on prices from 2013 may not be accurate today.
+
+The critical flaw in this analysis is the fact that the variables in the Medical Insurance dataset did not match the variables in the IPUMS data; BMI and smoker status of Americans were not available on IPUMS. Additionally, the insurance data lacked an indicator of whether each individual can or cannot afford their insurance charges, without this indicator, it was impossible to apply post-stratification methods. The next step for this analysis is to find suitable datasets to perform post-stratification methods on the age, BMI, number of children, existing health conditions, smoker status, and the state of residence. 
+
+Post-stratification enables an analysis based on weighted demographic subcategories and therefore, yield a more accurate prediction. In post-stratification, the population is divided into cells (subcategories of variables such as gender male, gender female, or age 18-25), an estimation is then made for each subcategory before it is weighted by the population size of the cell (total number of observations in a cell) and summed against the total population size. With the appliable datasets, the post-stratification method will yield a more conclusive answer regarding the proportion of the US population that can afford the average insurance plan. Of course, generating an additional variable indicating whether each individual can afford their insurance is an option, however, the final analysis will not be a realistic representation since it wouldn't be based on real data.
+
+## Appendix
+Supplementary material for Methodology: Model Section
+```{r, echo=FALSE}
+model = lm(charges ~ age + bmi + children + smoker + region,data = medical_data)
+summary(model)
+```
+
+## References
+
+- Abelson Goodnough & Abby Goodnough (2020). If the Supreme Court Ends Obamacare, Here’s What It Would Mean. The New York Times, 4 December 2020, https://www.nytimes.com/article/supreme-court-obamacare-case.html
+- Catherine E. Ross & John Mirowsky (2002). Does Medical Insurace Contribute to Socioeconimic Differentials in Health. Wiley Online Library, 5 January 2002. https://doi.org/10.1111/1468-0009.00171
+- CDC (2020). About Adult BMI. CDC: Centre for Disease Control and Prevention, U.S. Department of Health & Human Services. https://www.cdc.gov/healthyweight/assessing/bmi/adult_bmi/index.html
+- Henrik Petterson, Byron Manlet & Sergio Hernandez. “Tracking coronavirus’ global spread”, CNN Health, 12 December 2020. https://www.cnn.com/interactive/2020/health/coronavirus-maps-and-cases/
+- Janet Hunt (2020). Average cost of an ER visit. The Balance, 11 June, 2020. https://www.thebalance.com/average-cost-of-an-er-visit-4176166
+- Jim Probasco (2020). The Insurance Industry Confronts Its Own Racism. Investopia, 1 Sep. 2020. https://www.investopedia.com/race-and-insurance-5075141
+- Miri Choi (2017). Medical Cost Personal Dataset. Kaggle, 2017. https://www.kaggle.com/mirichoi0218/insurance
+- Matthew Michaels (2018). The 35 most expensive reasons you might have to visit a hospital in the US — and how much it costs if you do. Business Insider, 1 Mar. 2018. https://www.businessinsider.com/most-expensive-health-conditions-hospital-costs-2018-2
+- Michael D. Hurd & Kathleen McGarry (1997). Medical insurance and the use of health care services by the elderly. Science Direct: Elsevier, Vol.16:2, April 1997, 129-154.https://doi.org/10.1016/S0167-6296(96)00515-2
+- Michael Sainato (2020). The Americans dying because they can't afford medical care. The Guardian, (7 Jan 2020). https://www.theguardian.com/us-news/2020/jan/07/americans-healthcare-medical-costs
+- Steve Fiorillo (2020). What is the Average Income in the U.S.? The Street, February 11 2020. https://www.thestreet.com/personal-finance/average-income-in-us-14852178
+- Steven Ruggles, Sarah Flood, Ronald Goeken, Josiah Grover, Erin Meyer, Jose Pacas and Matthew Sobek. IPUMS USA: Version 10.0 [dataset]. Minneapolis, MN: IPUMS, 2020. https://doi.org/10.18128/D010.V10.0
